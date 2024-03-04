@@ -10,14 +10,6 @@ class Mesh:
         self.vertices = self.loadMesh(filepath)
         self.num_objects = len(self.vertices)
         print("Number of objects", self.num_objects, ", number of faces", [len(x)/9 for x in self.vertices])
-        #for i in range(self.num_objects):
-        #    print("Max vertices for object", i)
-        #    print("max x", max([self.vertices[i][x] for x in range(len(self.vertices[i])) if x%3 == 0]))
-        #    print("max y", max([self.vertices[i][x] for x in range(len(self.vertices[i])) if x%3 == 1]))
-        #    print("max z", max([self.vertices[i][x] for x in range(len(self.vertices[i])) if x%3 == 2]))
-        #    print("min x", min([self.vertices[i][x] for x in range(len(self.vertices[i])) if x%3 == 0]))
-        #    print("min y", min([self.vertices[i][x] for x in range(len(self.vertices[i])) if x%3 == 1]))
-        #    print("min z", min([self.vertices[i][x] for x in range(len(self.vertices[i])) if x%3 == 2]))
         self.s_i, self.s_ij = self.countArea()
         
     def loadMesh(self, filepath):
@@ -48,7 +40,6 @@ class Mesh:
                             obj_vertices.append(x)
                 elif flag == "g":
                     index.append(line[-2])
-                    print(index)
                     if len(obj_vertices):
                         vertices.append(obj_vertices)
                     obj_vertices = []
@@ -123,77 +114,3 @@ class Mesh:
         print(S_I, "\n", S_IJ)
         
         return S_I, S_IJ
-
-def coef_init(filepath):
-    global eps, c, Q_R, lmbd
-    with open(filepath) as f:
-        coefs = json.load(f)
-    for name, value in coefs.items():
-        if name == "c":
-            c = value
-        elif name == "eps":
-            eps = value
-        elif name == "lmbd":
-            lmbd = value
-        else:
-            print("ERROR in json file", filepath)
-    #eps = [0.05, 0.05, 0.1, 0.01, 0.1]
-    #c = [520, 520, 900, 840, 900]
-    #lmbd = [[0, 20, 0, 0, 0], [20, 0, 130, 0, 0], [0, 130, 0, 10.5, 0], [0, 0, 10.5, 0, 119], [0, 0, 0, 119, 0]]
-
-def temp_init(filepath):
-    global T
-    with open(filepath) as f:
-        coefs = json.load(f)
-    for name, value in coefs.items():
-        if name == "T":
-            T = value
-        else:
-            print("ERROR in json file", filepath)
-
-def g0(y, LS, EpSC, A, c):
-    #print(type(y))
-    y_sub = np.array([y_min - y_def for y_min in y for y_def in y]).reshape(len(y), len(y))
-    f = (- np.diag(LS @ y_sub) - EpSC * (y/100)**4)/c
-    f[0] += 23*A/c[0]
-    return f
-
-def g1(y, t, LS, EpSC, A, c):
-    #print(type(y))
-    y_sub = np.array([y_min - y_def for y_min in y for y_def in y]).reshape(len(y), len(y))
-    f = (- np.diag(LS @ y_sub) - EpSC * (y/100)**4)/c
-    f[0] += A*(20 + 3*math.cos(t/4))/c[0]
-    return f
-
-def g2(t, y, LS, EpSC, A, c):
-    #print(type(y))
-    y_sub = np.array([y_min - y_def for y_min in y for y_def in y]).reshape(len(y), len(y))
-    f = (- np.diag(LS @ y_sub) - EpSC * (y/100)**4)/c
-    f[0] += A*(20 + 3*math.cos(t/4))/c[0]
-    return f
-
-C0 = 5.67
-m = Mesh("model2.obj")
-s_i = m.s_i
-s_ij = m.s_ij
-coef_init("coefficients.json")
-LS = s_ij*lmbd
-print(LS)
-EpSC = eps*s_i*C0
-print(EpSC)
-
-init = [50, 50, 50, 50, 51]
-root = fsolve(g0, init, args=(LS, EpSC, 1, c))
-t = np.linspace(0, 10, 101)
-sol1 = odeint(g1, root, t, args=(LS, EpSC, 1, c))
-sol2 = solve_ivp(g2, [0, 10], root, args=(LS, EpSC, 1, c), t_eval=t)
-print(root, sol1.shape, sol2.t.shape, sol2.y.shape, t.shape, sol2)
-
-fig = plt.figure()
-ax = fig.add_subplot(1, 2, 1)
-ax.plot(t, sol1[:, 0])
-ax.set_title("odeint")
- 
-ax = fig.add_subplot(1, 2, 2)
-ax.plot(sol2.t, sol2.y[0, :])
-ax.set_title("solve_ivp")
