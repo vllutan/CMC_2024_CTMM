@@ -4,7 +4,7 @@ from Mesh import Mesh
 import numpy as np
 import math
 import json
-from scipy.integrate import odeint
+from scipy.integrate import odeint, solve_ivp
 from scipy.optimize import fsolve
 
 import matplotlib
@@ -25,7 +25,7 @@ class MainWindow(QMainWindow):
         super().__init__()
 
         self.setWindowTitle("APP")
-        self.setGeometry(100, 100, 1000, 400)
+        self.setGeometry(100, 100, 1200, 400)
         
         # create menu
         menuBar = QMenuBar(self)
@@ -85,33 +85,42 @@ class MainWindow(QMainWindow):
         if self.coef_filename == "DEFAULT":
             self.eps = [0.05, 0.05, 0.1, 0.01, 0.1]
             self.c = [520, 520, 900, 840, 900]
-            #self.lmbd = [[0, 20, 0, 0, 0], [20, 0, 130, 0, 0], [0, 130, 0, 10.5, 0], [0, 0, 10.5, 0, 119], [0, 0, 0, 119, 0]]
-            self.lmbd = [[0, 20, 0, 0, 0], [0, 0, 130, 0, 0], [0, 0, 0, 10.5, 0], [0, 0, 0, 0, 119], [0, 0, 0, 0, 0]]
+            self.lmbd = [[0, 20, 0, 0, 0], [20, 0, 130, 0, 0], [0, 130, 0, 10.5, 0], [0, 0, 10.5, 0, 119], [0, 0, 0, 119, 0]]
+            #self.lmbd = [[0, 20, 0, 0, 0], [0, 0, 130, 0, 0], [0, 0, 0, 10.5, 0], [0, 0, 0, 0, 119], [0, 0, 0, 0, 0]]
         else:
             self.c, self.eps, self.lmbd = cstFunctions.coef_init(self.coef_filename)
             
         self.C0 = 5.67
-        self.A = 1
+        self.A = 0.1
         self.model = Mesh("model2.obj")
         self.LS = self.model.s_ij*self.lmbd
         self.EpSC = self.eps*self.model.s_i*self.C0
-        print(self.LS, self.EpSC)
+        #print(self.LS, self.EpSC)
             
         if self.temp_filename == "DEFAULT":
             root = [0, 0, 0, 0, 0]
-            self.T = fsolve(cstFunctions.g01, root, args=(self.LS, self.EpSC, self.A, self.c))
+            self.T = fsolve(cstFunctions.g0, root, args=(self.LS, self.EpSC, self.A, self.c))
         else:
             self.T = cstFunctions.temp_init(self.temp_filename)
         
         if self.time_filename == "DEFAULT":
-            self.t = np.linspace(1, 100, 1001)
+            self.t_end = 1000
+            self.t = np.linspace(1, self.t_end, 301)
         else:
-            self.t = cstFunctions.time_init(self.time_filename)
+            self.t, self.t_end = cstFunctions.time_init(self.time_filename)
         
         #solve
-        self.sol1 = odeint(cstFunctions.g4, self.T, self.t, args=(self.LS, self.EpSC, self.A, self.c))
-
+        self.T = [0, 0, 0, 10, 10]
+        #self.T = [300, 30, 30, 30, 300]
+        print("Initial temperature", self.T)
+        
+        self.sol1 = odeint(cstFunctions.g1, self.T, self.t, args=(self.LS, self.EpSC, self.A, self.c))
+        #self.sol2 = solve_ivp(cstFunctions.g2, [0, self.t_end], self.T, args=(self.LS, self.EpSC, self.A, self.c), t_eval=self.t, method='Radau')
+        #print(self.sol1)
+        
         #draw
+        
+        # for odeint
         for i in range(5):
             self.ax[i].plot(self.t, self.sol1[:, i], label=f"y[{i}]")
             self.ax[5].plot(self.t, self.sol1[:, i], label=f"y[{i}]")
@@ -119,16 +128,37 @@ class MainWindow(QMainWindow):
         self.ax[5].legend()
         self.canvas.draw_idle()
         
+        # for solve_ivp
+        #for i in range(5):
+        #    self.ax[i].plot(self.sol2.t, self.sol2.y[i, :], label=f"y[{i}]")
+        #    self.ax[5].plot(self.sol2.t, self.sol2.y[i, :], label=f"y[{i}]")
+        #    self.ax[i].legend()
+        #self.ax[5].legend()
+        #self.canvas.draw_idle()
+        
         #write to json output file 
+        
+        # for odeint
         dictionary = {
             "t": self.t.tolist(),
-            "y0": self.sol1[:0].tolist(),
-            "y1": self.sol1[:1].tolist(),
-            "y2": self.sol1[:2].tolist(),
-            "y3": self.sol1[:3].tolist(),
-            "y4": self.sol1[:4].tolist()
+            "y0": self.sol1[:, 0].tolist(),
+            "y1": self.sol1[:, 1].tolist(),
+            "y2": self.sol1[:, 2].tolist(),
+            "y3": self.sol1[:, 3].tolist(),
+            "y4": self.sol1[:, 4].tolist()
         }
         json_object = json.dumps(dictionary, indent=6)
+        
+        # for solve_ivp
+        #dictionary = {
+        #    "t": self.t.tolist(),
+        #    "y0": self.sol2.y[0, :].tolist(),
+        #    "y1": self.sol2.y[1, :].tolist(),
+        #    "y2": self.sol2.y[2, :].tolist(),
+        #    "y3": self.sol2.y[3, :].tolist(),
+        #    "y4": self.sol2.y[4, :].tolist()
+        #}
+        #json_object = json.dumps(dictionary, indent=6)
  
         with open(self.outp_filename, "w") as outfile:
             outfile.write(json_object)
