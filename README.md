@@ -3,3 +3,6 @@
 
 ## Задание 1
 * Вариант 4, модель 2
+
+## Задание 3
+* методы: odeint, Верле, multiprocessing, Cython + OpenMP, OpenCL (CPU and CUDA)
