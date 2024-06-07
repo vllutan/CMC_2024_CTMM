@@ -14,7 +14,7 @@ if __name__=="__main__":
     interval = np.arange(0, 15, 1)
     dt = interval[1] - interval[0]
     
-    N = [100, 200, 400]
+    N = [100, 200, 400, 800]
     rng = np.random.default_rng()
     particles = [np.array([rng.integers(low=0, high=1e10, size=5) for i in range(j)]) for j in N]
     #print(particles)
